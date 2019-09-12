@@ -1,0 +1,49 @@
+.navbar-default .navbar-nav > li > a {
+    color: white;
+    font-size: 18pt;
+    font-weight: 300;
+}
+
+.navbar-default .navbar-nav > li > a:hover, .navbar-default .navbar-nav > li > a:focus {
+    background-color: rgb(0, 91, 255);
+    color: #FFC0CB;
+}
+
+.dropdown-menu {
+    background-color: rgb(0, 200, 255);;
+}
+
+.dropdown-menu > li > a:hover, .dropdown-menu > li > a:focus {
+    background-image:none !important;
+}
+.dropdown-menu > li > a:hover, .dropdown-menu > li > a:focus {
+    background-color:rgb(0, 100, 255);
+}
+.dropdown-menu > li > a {
+    background-color: rgb(0, 150, 255);
+    color: white;
+    font-size: 14pt;
+    font-weight: 200;    
+}
+
+body {
+    padding-top: 70px; /* Required padding for .navbar-fixed-top. Change if height of navigation changes. */
+}
+
+.navbar-default .nav {
+    padding: 15px 0;
+}
+
+.navbar-default .navbar-brand {
+    padding: 0 15px;
+}
+
+@media(min-width:768px) {
+    body {
+        padding-top: 100px; /* Required padding for .navbar-fixed-top. Change if height of navigation changes. */
+    }
+
+    .navbar-fixed-top .navbar-brand {
+        padding: 15px 0;
+    }
+}

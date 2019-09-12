@@ -1,0 +1,399 @@
+package galco.portal.utils;
+
+import galco.portal.db.DBConnector;
+import galco.portal.exception.PortalException;
+import galco.portal.wds.dao.UserSession;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.sql.SQLException;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+
+import java.util.Properties;
+
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+
+
+public class Utils {
+	private static Logger log = Logger.getLogger(Utils.class);
+
+	// -------------------------------------------------------------------------------------------------------------
+
+    public static boolean isHostNameOK(String host) {
+        try {
+            InetAddress inetHost = InetAddress.getByName(host);
+            return true;
+        } catch(UnknownHostException ex) {
+            return false;
+        }
+    }
+
+	// -------------------------------------------------------------------------------------------------------------
+
+    public static boolean isZipCodeValid(String zip, String country) {
+    	// System.out.println(zip + " " + country);
+    	
+    	if (StringUtils.isEmpty(zip)) {
+    		return false;
+    	}
+
+    	// log.debug(zip);
+
+    	/*
+	    US ZIP code (U.S. postal code) allow both the five-digit and nine-digit (called ZIP+4) formats. A valid postal code should match 12345 and 12345-6789, but not 1234, 123456, 123456789, or 1234-56789.
+
+	    Regex : ^[0-9]{5}(?:-[0-9]{4})?$
+	    ^           # Assert position at the beginning of the string.
+	    [0-9]{5}    # Match a digit, exactly five times.
+	    (?:         # Group but don't capture:
+	      -         #   Match a literal "-".
+	      [0-9]{4}  #   Match a digit, exactly four times.
+	    )           # End the non-capturing group.
+	      ?         #   Make the group optional.
+	    $           # Assert position at the end of the string.
+	    */
+
+    	if (country.compareToIgnoreCase("United States") == 0) {
+		    String regex = "^[0-9]{5}(?:-[0-9]{4})?$";
+		    Pattern pattern = Pattern.compile(regex);
+	
+	        Matcher matcher = pattern.matcher(zip);
+		    if(matcher.matches()) {
+		    	return true;
+		    }
+	
+		    return false;
+    	} else if (country.compareToIgnoreCase("Canada") == 0) {
+    		String zipUC = zip.toUpperCase();
+    		
+    		String regex = "^(?!.*[DFIOQU])[A-VXY][0-9][A-Z] ?[0-9][A-Z][0-9]$";
+		    Pattern pattern = Pattern.compile(regex);
+	
+	        Matcher matcher = pattern.matcher(zipUC);
+		    if(matcher.matches()) {
+		    	return true;
+		    }
+	
+		    return false;    		
+    	} else {
+    		return true;
+    	}
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+    /** isPhoneNumberValid: Validate phone number using Java reg ex.
+    * This method checks if the input string is a valid phone number.
+    * @param phoneNumber String. Phone number to validate
+    * @return boolean: true if phone number is valid, false otherwise.
+    */
+    public static Long isPhoneNumberValid(String phoneNumber) {
+    	// log.debug(phoneNumber);
+
+	    /* Phone Number formats: (nnn)nnn-nnnn; nnnnnnnnnn; nnn-nnn-nnnn
+	        ^\\(? : May start with an optional "(" .
+	        (\\d{3}): Followed by 3 digits.
+	        \\)? : May have an optional ")"
+	        [- ]? : May have an optional "-" after the first 3 digits or after optional blank character.
+	        (\\d{3}) : Followed by 3 digits.
+	         [- ]? : May have another optional "-" after numeric digits.
+	         (\\d{4})$ : ends with four digits.
+
+	             Examples: Matches following phone numbers:
+	             (123)456-7890, 123-456-7890, 1234567890, (123)-456-7890
+
+	    */
+
+    	if (phoneNumber == null) {
+    		return null;
+    	}
+
+	    //Initialize reg ex for phone number.
+	    String expression = "^\\(?(\\d{3})\\)?[- ]?(\\d{3})[- ]?(\\d{4})$";
+	    CharSequence inputStr = phoneNumber;
+	    Pattern pattern = Pattern.compile(expression);
+	    Matcher matcher = pattern.matcher(inputStr);
+
+
+		if (matcher.find()) {
+			// log.debug(matcher.group(0) + "**" + matcher.group(1) + "**" + matcher.group(2));
+			return new Long(matcher.group(1) + matcher.group(2) + matcher.group(3));
+		} else {
+	    	return null;
+	    }
+    }
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static boolean isEmailAddressValid(String email) {
+    	log.debug(email);
+
+		/*
+		Email format: A valid email address will have following format:
+		        [\\w\\.-]+: Begins with word characters, (may include periods and hypens).
+		    @: It must have a '@' symbol after initial characters.
+		    ([\\w\\-]+\\.)+: '@' must follow by more alphanumeric characters (may include hypens.).
+		This part must also have a "." to separate domain and subdomain names.
+		    [A-Z]{2,4}$ : Must end with two to four alaphabets.
+		(This will allow domain names with 2, 3 and 4 characters e.g pa, com, net, wxyz)
+
+		Examples: Following email addresses will pass validation
+		abc@xyz.net; ab.c@tx.gov
+		*/
+		String expression = "^[\\w\\.-]+@([\\w\\-]+\\.)+[A-Z]{2,4}$";
+		//Make the comparison case-insensitive.
+		Pattern pattern = Pattern.compile(expression,Pattern.CASE_INSENSITIVE);
+		Matcher matcher = pattern.matcher(email);
+		if(!matcher.matches()) {
+			return false;
+		}
+
+		/*
+		if ((!StringUtils.isNotBlank(email)				) ||
+			(email.length() 	<  5					) ||
+			(email.indexOf('@') == 0					) ||
+			(email.substring(0,1).compareTo("@") == 0	) ||
+			(email.indexOf('.') == 0					) ||
+			(email.endsWith("@")						)    ) {
+			return false;
+		}
+		*/
+
+		String domain = email.substring(email.indexOf('@') + 1);
+		if (isHostNameOK(domain) == false) {
+			return false;
+		}
+
+		return true;
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static Integer getPOBoxNumber(String address) {
+		// log.debug(address);
+
+		/*
+		String poboxPattern =   "p(ost|\\.)?" 						// p p. post
+		               			+ "\\s*" + "o\\.?(ff(ice|\\.)?)?" 	// o o. off off. office
+		               			+ "\\s*" + "(b(ox|in|\\.)?)?" 		// b b. box bin
+		               			+ "\\s*" + "((\\d)+)"; 				// Any number
+		*/
+		// String poboxPattern = "(?i)^\\s*P(OST)?.?\\s*(O(FF(ICE)?)?)?.?\\s+(B(IN|OX))?)|B(IN|OX))\\s*((\\d)+)";
+		// String poboxPattern = "^\\s*((P(OST)?.?\\s*(O(FF(ICE)?)?)?.?\\s+(B(IN|OX))?)|B(IN|OX))\\s*((\\d)+)";
+		String poboxPattern = "^\\s*(?:P(?:OST|\\.)?\\s*O(?:FF\\s+|FFICE\\s+|\\.)?)?\\s*BOX\\s+(\\d+)";
+
+		Pattern r = Pattern.compile(poboxPattern, Pattern.CASE_INSENSITIVE);
+
+		Matcher m = r.matcher(address);
+		if (m.find()) {
+			return new Integer(m.group(1));
+		} else {
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static boolean addressesMatched(String address1, String zip1, String address2, String zip2) {
+		// log.debug(address1 + "|" + zip1 + "|" + address2 + "|" + zip2);
+
+		if ((StringUtils.isBlank(address1)	) ||
+			(StringUtils.isBlank(zip1)		) ||
+			(StringUtils.isBlank(address2)	) ||
+			(StringUtils.isBlank(zip2)		)    ) {
+			return false;
+		}
+
+		String streetNo1, zip51, streetNo2, zip52;
+
+		zip51 = (zip1.trim() + "     ").substring(0, 5);
+		zip52 = (zip2.trim() + "     ").substring(0, 5);
+
+		Integer pobox1 = getPOBoxNumber(address1);
+		if (pobox1 != null) {
+			Integer pobox2 = Utils.getPOBoxNumber(address2);
+			if (pobox2 != null) {
+				if ((zip51.compareTo(zip52) == 0			) &&
+					(pobox1.intValue() == pobox2.intValue()	)    ) {
+					return true;
+				} else {
+					return false;
+				}
+			} else {
+				return false;
+			}
+		}
+
+		streetNo1 = address1.substring(0, (address1 + " ").indexOf(' '));
+		streetNo2 = address2.substring(0, (address2 + " ").indexOf(' '));
+
+		if ((zip51.compareTo(zip52) == 0			) &&
+		    (streetNo1.compareTo(streetNo2)  == 0	)    ) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static int setBit(int c, int bitNo) {
+		return (int) (c | (1 << bitNo));
+	}
+	public static int unsetBit(int c, int bitNo) {
+		return (int) (c & ~(1 << bitNo));
+	}
+	public static boolean getBit(int c, int bitNo) {
+		return ((c & (1 << bitNo)) != 0);
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static boolean findInCommaSeparatedList(String haystack, String needle) {
+		StringTokenizer tokenizer = new StringTokenizer(haystack, ",");
+		while (tokenizer.hasMoreTokens()) {
+			if (tokenizer.nextToken().compareToIgnoreCase(needle) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static void forwardToJSP(HttpServletRequest request, HttpServletResponse response, String jspPage, String messageToUser) throws PortalException {
+		request.setAttribute("messageToUser", messageToUser);
+		try {
+			request.getRequestDispatcher(jspPage).forward(request, response);
+		} catch (ServletException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_1);
+		} catch (IOException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_1);
+		}
+	}
+
+	public static void forwardToJSP(HttpServletRequest request, HttpServletResponse response, String jspPage, String messageToUser, Boolean messageIsNotAnError) throws PortalException {
+		request.setAttribute("messageToUser", messageToUser);
+		request.setAttribute("messageIsNotAnError", messageIsNotAnError);
+		try {
+			request.getRequestDispatcher(jspPage).forward(request, response);
+		} catch (ServletException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_1);
+		} catch (IOException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_1);
+		}
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static UserSession checkAndRediredtUnauthenticatedUsers(HttpServletRequest request, DBConnector dbConnector, HttpServletResponse response) throws PortalException {
+		UserSession userSession = null;
+		userSession = UserSession.getUserSession(request, dbConnector, response);
+
+		if (userSession != null) {
+			return userSession;
+		} else {
+			log.debug("Session expired, and so forwarding to SignIn page.");
+			Utils.forwardToJSP(request, response, "SignIn.jsp", null);
+			return null;
+		}
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static UserSession checkIfUserIsAuthenticated(HttpServletRequest request, DBConnector dbConnector, HttpServletResponse response) throws PortalException {
+		UserSession userSession = null;
+		userSession = UserSession.getUserSession(request, dbConnector, response);
+
+		return userSession;
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static void sendMailOld(String to, String from, String subject, String body) throws PortalException {
+		Properties props = new Properties();
+		props.put("mail.smtp.host", "sigma.galco.com");
+		// props.put("mail.smtp.socketFactory.port", "465");
+		// props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+		// props.put("mail.smtp.auth", "true");
+		// props.put("mail.smtp.port", "465");
+		// props.put("mail.smtp.port", "25");
+
+		Session session = Session.getDefaultInstance(props);
+		/*
+		Session session = Session.getDefaultInstance(props,
+				new javax.mail.Authenticator() {
+					protected PasswordAuthentication getPasswordAuthentication() {
+						return new PasswordAuthentication("root","");
+					}
+				});
+		*/
+
+		try {
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(from));
+			// message.setRecipients(Message.RecipientType.TO, InternetAddress.parse("sati@galco.com"));
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+			message.setSubject(subject);
+			message.setText(body);
+
+			Transport.send(message);
+		} catch (MessagingException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);
+		}
+	}
+
+	public static void sendMail(String to, String from, String subject, String body) throws PortalException {
+		Properties props = new Properties();
+		props.put("mail.smtp.host", "sigma.galco.com");
+		// props.put("mail.smtp.socketFactory.port", "465");
+		// props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+		// props.put("mail.smtp.auth", "true");
+		// props.put("mail.smtp.port", "465");
+		// props.put("mail.smtp.port", "25");
+
+		Session session = Session.getDefaultInstance(props);
+		/*
+		Session session = Session.getDefaultInstance(props,
+				new javax.mail.Authenticator() {
+					protected PasswordAuthentication getPasswordAuthentication() {
+						return new PasswordAuthentication("root","");
+					}
+				});
+		*/
+
+		try {
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(from));
+			
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to, true));
+
+			message.setSubject(subject);
+			message.setText(body);
+
+			Transport.send(message);
+		} catch (MessagingException e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);
+		}
+	}
+
+}

@@ -1,0 +1,401 @@
+package galco.portal.wds.matcher;
+
+import galco.portal.db.DBConnector;
+import galco.portal.exception.PortalException;
+import galco.portal.utils.Utils;
+import galco.portal.wds.dao.Contact;
+import galco.portal.wds.dao.Cust;
+import galco.portal.wds.dao.Custbill;
+import galco.portal.wds.dao.Custship;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+
+public class CustNumBasedExistingContactMatcher {
+    
+    public static CustNumBasedMatcherResult matchAgainstExistingCustomers(DBConnector dbConnector,
+                        String cust_num, String e_mail_address,
+                        String phone1, String phone2, String phone3,
+                        String address, String address2, 
+                        String zip,
+                        String firstName, String lastName) {
+        try {
+            boolean CUST_NUM_SUPPLIED = false;
+            boolean CUST_NUM_MATCHED = false;
+            boolean EMAIL_MATCHED = false;
+            boolean PHONE_NUMBER_MATCHED = false;
+            boolean ADDRESS_MATCHED = false;
+            boolean NAME_MATCHED = false;
+            boolean EMAIL_DOMAIN_MATCHED = false;
+            
+            int cont_no = 0;
+
+            /*
+             * YET TO TEST
+            cust_num = "148333";
+            e_mail_address = "sati3@galco.com";
+            phone1 = ""; phone2 = ""; phone3 = "";
+            address = ""; address2 = ""; zip = "";
+            firstName = "manepalli";
+            lastName = "hari";
+            */
+
+            /*
+            // TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED 
+            // Phone doesn't match. Address doesn't match cust but matches either billto or shipto
+            cust_num = "047555";
+            e_mail_address = "vjmckoon@platt.com";
+            phone1 = "2489876543"; phone2 = ""; phone3 = "";
+            // Matches Billto 
+            // address = "1825 ELLIS STREET"; address2 = ""; zip = "98225";
+            // Matches Shipto
+            address = "1231 GROVE STREET"; address2 = ""; zip = "97365";
+            firstName = "VANESSA";
+            lastName = "MCKOON";
+            */
+            
+            /*
+            // TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED 
+            // cust_num exists, e-mail matches, phone matches cust, address matches cust, name matches
+            cust_num = "005085";
+            e_mail_address = "dhusken@kerrpump.com";
+            phone1 = "2485433880"; phone2 = "2485433236"; phone3 = "";
+            address = "12880 CLOVERDALE"; address2 = ""; zip = "48237";
+            firstName = "DARICK";
+            lastName = "HUSKEN";
+            */
+
+            // qqq
+
+            /*
+            // TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED 
+            // E-mail matches more than one cust/contact
+            cust_num = "116080"; // Other customer 085077
+            e_mail_address = "lomaxij@state.gov";
+            phone1 = "2027367347"; phone2 = "2026472432"; phone3 = "";
+            address = "12880 CLOVERDALE"; address2 = ""; zip = "48237";
+            firstName = "INGRID";
+            lastName = "LOMAX";
+            */
+            
+            // TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED TESTED 
+            // cust_num exists, phone matches cust, address matches cust, but domain doesn't match
+            cust_num = "005085";
+            e_mail_address = "dhusken@abcd.com";
+            phone1 = "2485433880"; phone2 = "2485433236"; phone3 = "";
+            address = "12880 CLOVERDALE"; address2 = ""; zip = "48237";
+            firstName = "DARICK";
+            lastName = "HUSKEN";
+
+            
+            HashSet<String> distinctMatchedCustNums = null;
+            Cust cust = null;
+
+            
+            if ((cust_num != null) && (cust_num.trim().compareTo("") != 0)) {
+                ArrayList<Cust> custAL = Cust.getCustForGivenCustNo(dbConnector, cust_num);
+                if ((custAL != null) && (custAL.size() == 1)) {
+                    CUST_NUM_SUPPLIED = true;
+                    cust = custAL.get(0);
+                    CUST_NUM_MATCHED = true;
+                    
+                    distinctMatchedCustNums = new HashSet<String>();
+                    distinctMatchedCustNums.add(cust_num);
+                } else {
+                    System.out.println("ERROR_CUSTOMER_NUMBER_ENTERED_IS_NOT_FOUND " + cust_num + " " + cust_num);
+                    return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_CUSTOMER_NUMBER_ENTERED_IS_NOT_FOUND, "", 0);
+                }
+            }   
+            
+            
+            if ((e_mail_address != null) && (e_mail_address.trim().compareTo("") != 0)) {
+                ArrayList<Contact> contacts_MatchedEmail_AL = Contact.getContactsThatMatchedEmail(dbConnector, e_mail_address);
+                
+                if ((contacts_MatchedEmail_AL != null) && (contacts_MatchedEmail_AL.size() > 0)) {
+                    HashSet<String> distinctCustNums_ContactsThatMatchedEmail_HS = Cust.getTheListOfDistinctCustNos(contacts_MatchedEmail_AL);
+
+                    if ((distinctCustNums_ContactsThatMatchedEmail_HS != null) && (distinctCustNums_ContactsThatMatchedEmail_HS.size() > 0)) {
+                        if (CUST_NUM_SUPPLIED == true) {
+                            if (distinctCustNums_ContactsThatMatchedEmail_HS.contains(cust_num)) {
+                                EMAIL_MATCHED = true;
+                            } else {
+                                EMAIL_MATCHED = false;
+                            }
+                        } else {
+                            distinctMatchedCustNums = distinctCustNums_ContactsThatMatchedEmail_HS;
+                        }
+
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        if (distinctCustNums_ContactsThatMatchedEmail_HS.size() > 1) {
+                            System.out.print("ERROR_EMAIL_MATCHED_MULTIPLE_CUSTOMERS ");
+                            for (Iterator<String> iterator = distinctCustNums_ContactsThatMatchedEmail_HS.iterator(); iterator.hasNext();) {
+                                String temp_cust_num = (String) iterator.next();
+                                System.out.print("\t" + temp_cust_num);
+                            }
+                            System.out.println("");
+                            return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_EMAIL_MATCHED_MULTIPLE_CUSTOMERS, "", 0);
+                        } else {
+                            EMAIL_MATCHED = true;
+                            
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                cust_num = contacts_MatchedEmail_AL.get(0).getCust_num();
+                            } else {
+                                if (cust_num.compareToIgnoreCase(contacts_MatchedEmail_AL.get(0).getCust_num()) != 0) {
+                                    System.out.println("ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS Between Cust_num entered and e-mail matched cust_num " + cust_num + " " + contacts_MatchedEmail_AL.get(0).getCust_num());
+                                    return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS, "", 0);                                 
+                                }
+                            }                           
+                        }
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                    }
+                }
+            }
+            
+            
+            if (((phone1 != null) && (phone1.trim().compareTo("") != 0)) ||
+                ((phone2 != null) && (phone2.trim().compareTo("") != 0)) || 
+                ((phone3 != null) && (phone3.trim().compareTo("") != 0))    ) {
+                ArrayList<Contact> contacts_MatchedPhone_AL = Contact.getContactsThatMatchedPhone(dbConnector, phone1, phone2, phone3);
+
+                if ((contacts_MatchedPhone_AL != null) && (contacts_MatchedPhone_AL.size() > 0)) {
+                    HashSet<String> distinctCustNums_ContactsThatMatchedPhone_HS = Cust.getTheListOfDistinctCustNos(contacts_MatchedPhone_AL);
+    
+                    if ((distinctCustNums_ContactsThatMatchedPhone_HS != null) && (distinctCustNums_ContactsThatMatchedPhone_HS.size() > 0)) {
+                        if (distinctCustNums_ContactsThatMatchedPhone_HS.size() > 1) {
+                            System.out.print("ERROR_PHONE_MATCHED_MULTIPLE_CUSTOMERS (Matched with Contact)");
+                            for (Iterator<String> iterator = distinctCustNums_ContactsThatMatchedPhone_HS.iterator(); iterator.hasNext();) {
+                                String temp_cust_num = (String) iterator.next();
+                                System.out.print("\t" + temp_cust_num);
+                            }
+                            System.out.println("");
+                            return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_PHONE_MATCHED_MULTIPLE_CUSTOMERS, "", 0);                                                              
+                        } else {
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                cust_num = contacts_MatchedPhone_AL.get(0).getCust_num();
+                            } else {
+                                if (cust_num.compareToIgnoreCase(contacts_MatchedPhone_AL.get(0).getCust_num()) != 0) {
+                                    System.out.println("ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS Between Cust_num entered and phone matched cust_num " + cust_num + " " + contacts_MatchedPhone_AL.get(0).getCust_num());
+                                    return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS, "", 0);                                 
+                                }
+                            }   
+                            PHONE_NUMBER_MATCHED = true;
+                        }                   
+                        
+                    }
+                } else {
+                    ArrayList<Cust> custs_MatchedPhoneOfCust_AL = Cust.getCustsThatMatchedPhone(dbConnector, phone1, phone2, phone3);
+                    if ((custs_MatchedPhoneOfCust_AL != null) && (custs_MatchedPhoneOfCust_AL.size() > 0)) {
+                        HashSet<String> distinctCustNums_CustsThatMatchedPhone_HS = Cust.getTheListOfDistinctCustNos(custs_MatchedPhoneOfCust_AL);
+                        
+                        if ((distinctCustNums_CustsThatMatchedPhone_HS != null) && (distinctCustNums_CustsThatMatchedPhone_HS.size() > 0)) {
+                            if (distinctCustNums_CustsThatMatchedPhone_HS.size() > 1) {
+                                System.out.print("ERROR_PHONE_MATCHED_MULTIPLE_CUSTOMERS (Matched with Cust)");
+                                for (Iterator<String> iterator = distinctCustNums_CustsThatMatchedPhone_HS.iterator(); iterator.hasNext();) {
+                                    String temp_cust_num = (String) iterator.next();
+                                    System.out.print("\t" + temp_cust_num);
+                                }
+                                System.out.println("");
+                                
+                                return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_PHONE_MATCHED_MULTIPLE_CUSTOMERS, "", 0);                                                              
+                            } else {
+                                if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                    cust_num = custs_MatchedPhoneOfCust_AL.get(0).getCust_num();
+                                } else {
+                                    if (cust_num.compareToIgnoreCase(custs_MatchedPhoneOfCust_AL.get(0).getCust_num()) != 0) {
+                                        System.out.println("ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS Between Cust_num entered and phone matched cust_num on Cust " + cust_num + " " + custs_MatchedPhoneOfCust_AL.get(0).getCust_num());
+                                        return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_MISMATCH_BETWEEN_CUSTOMER_NUMBERS, "", 0);                                 
+                                    }
+                                }   
+                                PHONE_NUMBER_MATCHED = true;
+                            }                   
+                            
+                        }
+                    }
+                }
+            }
+            
+            
+            if ((CUST_NUM_MATCHED = false       ) &&
+                (EMAIL_MATCHED = false          ) &&
+                (PHONE_NUMBER_MATCHED == false  )    ) {
+                ArrayList<Cust> zipMatchedCusts = Cust.getCustsForGivenZip(dbConnector, zip);
+                if ((zipMatchedCusts != null) && (zipMatchedCusts.size() > 0)) {
+                    HashSet<String> custNums_AddressMatchedCust_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(zipMatchedCusts, address, address2, zip);
+                    if ((custNums_AddressMatchedCust_HS != null) && (custNums_AddressMatchedCust_HS.size() == 1)) {
+                        ADDRESS_MATCHED = true;
+                        if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                            for (Iterator<String> iterator = custNums_AddressMatchedCust_HS.iterator(); iterator.hasNext();) {
+                                cust_num = iterator.next();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                    
+                if (ADDRESS_MATCHED == false) {
+                    ArrayList<Custbill> zipMatchedCustbills = Custbill.getCustbillssForGivenZip(dbConnector, zip);                  
+                    if ((zipMatchedCustbills != null) && (zipMatchedCustbills.size() > 0)) {
+                        HashSet<String> custNums_AddressMatchedCustbill_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(zipMatchedCustbills, address, address2, zip);
+                        if ((custNums_AddressMatchedCustbill_HS != null) && (custNums_AddressMatchedCustbill_HS.size() == 1)) {
+                            ADDRESS_MATCHED = true;
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                for (Iterator<String> iterator = custNums_AddressMatchedCustbill_HS.iterator(); iterator.hasNext();) {
+                                    cust_num = iterator.next();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+
+                if (ADDRESS_MATCHED == false) {
+                    ArrayList<Custship> zipMatchedCustships = Custship.getCustshipsForGivenZip(dbConnector, zip);
+                    if ((zipMatchedCustships != null) && (zipMatchedCustships.size() > 0)) {
+                        HashSet<String> custNums_AddressMatchedCustship_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(zipMatchedCustships, address, address2, zip);
+                        if ((custNums_AddressMatchedCustship_HS != null) && (custNums_AddressMatchedCustship_HS.size() == 1)) {
+                            ADDRESS_MATCHED = true;
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                for (Iterator<String> iterator = custNums_AddressMatchedCustship_HS.iterator(); iterator.hasNext();) {
+                                    cust_num = iterator.next();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                ArrayList<Cust> matchedCusts = Cust.getCustForGivenCustNo(dbConnector, cust_num);
+                if ((matchedCusts != null) && (matchedCusts.size() > 0)) {
+                    HashSet<String> custNums_AddressMatchedCust_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(matchedCusts, address, address2, zip);
+                    if ((custNums_AddressMatchedCust_HS != null) && (custNums_AddressMatchedCust_HS.size() == 1)) {
+                        ADDRESS_MATCHED = true;
+                        if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                            for (Iterator<String> iterator = custNums_AddressMatchedCust_HS.iterator(); iterator.hasNext();) {
+                                cust_num = iterator.next();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                    
+                if (ADDRESS_MATCHED == false) {
+                    ArrayList<Custbill> custbillsOfMatchedCust = Custbill.getCustbillsForGivenCustNo(dbConnector, cust_num);
+                    if ((custbillsOfMatchedCust != null) && (custbillsOfMatchedCust.size() > 0)) {
+                        HashSet<String> custNums_AddressMatchedCustbill_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(custbillsOfMatchedCust, address, address2, zip);
+                        if ((custNums_AddressMatchedCustbill_HS != null) && (custNums_AddressMatchedCustbill_HS.size() == 1)) {
+                            ADDRESS_MATCHED = true;
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                for (Iterator<String> iterator = custNums_AddressMatchedCustbill_HS.iterator(); iterator.hasNext();) {
+                                    cust_num = iterator.next();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+
+                if (ADDRESS_MATCHED == false) {
+                    ArrayList<Custship> custshipsOfMatchedCust = Custship.getCustshipsForGivenCustNo(dbConnector, cust_num);
+                    if ((custshipsOfMatchedCust != null) && (custshipsOfMatchedCust.size() > 0)) {
+                        HashSet<String> custNums_AddressMatchedCustship_HS = ExistingContactMatcher.getDistinctCustnumsOfRecordsThatMatchedAddress(custshipsOfMatchedCust, address, address2, zip);
+                        if ((custNums_AddressMatchedCustship_HS != null) && (custNums_AddressMatchedCustship_HS.size() == 1)) {
+                            ADDRESS_MATCHED = true;
+                            if ((cust_num == null) || (cust_num.trim().compareTo("") == 0)) {
+                                for (Iterator<String> iterator = custNums_AddressMatchedCustship_HS.iterator(); iterator.hasNext();) {
+                                    cust_num = iterator.next();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+            if ((PHONE_NUMBER_MATCHED == false) && (ADDRESS_MATCHED == false)) {
+                System.out.println("ERROR_BOTH_PHONE_AND_ADDRESS_DID_NOT_MATCH");
+                return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_BOTH_PHONE_AND_ADDRESS_DID_NOT_MATCH, "", 0);                                                  
+            }
+
+            
+            ArrayList<Contact> contactsWithMatchingFirstInitialAndLastName = Contact.findContactWithMatchingFirstInitialAndLastName(dbConnector, cust_num, firstName.substring(0, 1), lastName);
+            if ((contactsWithMatchingFirstInitialAndLastName != null) && (contactsWithMatchingFirstInitialAndLastName.size() == 1)) {
+                NAME_MATCHED = true;
+                cont_no = contactsWithMatchingFirstInitialAndLastName.get(0).getCont_no();
+            }
+
+            
+            {
+                String domain = Utils.getEmailDomain(e_mail_address);
+                ArrayList<Contact> contactsThatMatchedDomain = Contact.getContactsThatMatchedDomainWithinACustomer(dbConnector, cust_num, domain);
+                if ((contactsThatMatchedDomain != null) && (contactsThatMatchedDomain.size() > 0)) {
+                    EMAIL_DOMAIN_MATCHED = true;
+                }
+            }
+
+            
+            if (EMAIL_DOMAIN_MATCHED == false) {
+                System.out.println("ERROR_EMAIL_DOMAIN_DID_NOT_MATCH");
+                return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_EMAIL_DOMAIN_DID_NOT_MATCH, "", 0);                                                                    
+            }
+
+            
+            if ((CUST_NUM_MATCHED == false  ) &&
+                (EMAIL_MATCHED == false     ) &&
+                (NAME_MATCHED == false      )    ) {
+                return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.MATCHED_FOR_NO_TERMS, cust_num, cont_no);                                                                    
+            } else {
+                return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.MATCHED_FOR_TERMS, cust_num, cont_no);                                                                   
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_EXCEPTION_OCCURRED, "", 0);                                                                                
+        } catch (PortalException e) {
+            e.getE().printStackTrace();
+            return new CustNumBasedMatcherResult(CustNumBasedMatcherResult.ERROR_EXCEPTION_OCCURRED, "", 0);                                                                                
+        }
+    }
+    
+}

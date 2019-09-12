@@ -1,0 +1,516 @@
+package galco.portal.wds.dao;
+
+import galco.portal.db.DBConnector;
+import galco.portal.exception.PortalException;
+import galco.portal.utils.JDBCUtils;
+import galco.portal.wds.matcher.Has_Cust_num;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+
+public class Contact implements Has_Cust_num {
+	private static Logger log = Logger.getLogger(Contact.class);
+
+	private String pros_cd;
+	private int cont_no;
+	private String co_name_f;
+	private String co_name_m;
+	private String co_name_l;
+	private String e_mail_address;
+	private String job_ttl_cd;
+	private String phone1;
+	private String phone2;
+	private String phone1_ex;
+	private String phone2_ex;
+	private String audit_userid;
+	private String audit_date;	
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public Contact() {
+	}
+
+	public Contact(String pros_cd, int cont_no, String co_name_f,
+			String co_name_m, String co_name_l, String e_mail_address,
+			String phone1, String phone2, String phone1_ex, String phone2_ex, String audit_userid,
+			String audit_date) {
+		this(pros_cd, cont_no, co_name_f,
+			 co_name_m, co_name_l, e_mail_address, "BUYER",
+			 phone1, phone2, phone1_ex, phone2_ex, audit_userid, audit_date);
+	}
+
+	public Contact(String pros_cd, int cont_no, String co_name_f,
+			String co_name_m, String co_name_l, String e_mail_address, String job_ttl_cd,
+			String phone1, String phone2, String phone1_ex, String phone2_ex, String audit_userid,
+			String audit_date) {
+		this.pros_cd = pros_cd;
+		this.cont_no = cont_no;
+		this.co_name_f = co_name_f;
+		this.co_name_m = co_name_m;
+		this.co_name_l = co_name_l;
+		this.e_mail_address = e_mail_address;
+		this.job_ttl_cd = job_ttl_cd;
+		this.phone1 = phone1;
+		this.phone2 = phone2;
+		this.phone1_ex = phone1_ex;
+		this.phone2_ex = phone2_ex;
+		this.audit_userid = audit_userid;
+		this.audit_date = audit_date;		
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static String getQueryFieldSelectionString() {
+		return "pros_cd, cont_no, co_name_f, substr(co_name_m, 1, 1) as co_name_m, co_name_l, e_mail_address, job_ttl_cd, phone1, phone2, phone1_ex, phone2_ex, audit_userid, audit_date";
+	}
+
+	public static ArrayList<Contact> buildDAOObjectsFromResultSet(DBConnector dbConnector, String queryString) throws PortalException {
+		ArrayList<Contact> al = new ArrayList<Contact>();
+
+		Statement stmt = null;
+		ResultSet rs = null;
+
+        try {
+			stmt = dbConnector.getStatementWDS();
+            rs = stmt.executeQuery(queryString);
+
+            while (rs.next()) {
+	            Contact contact = new Contact();
+
+				// log.debug(JDBCUtils.getStringFromResultSet(rs, "co_name_f"));
+
+				contact.setPros_cd(JDBCUtils.getStringFromResultSet(rs, "pros_cd"));
+				contact.setCont_no(rs.getInt("cont_no"));
+				contact.setCo_name_f(JDBCUtils.getStringFromResultSet(rs, "co_name_f"));
+				contact.setCo_name_m(JDBCUtils.getStringFromResultSet(rs, "co_name_m"));
+				contact.setCo_name_l(JDBCUtils.getStringFromResultSet(rs, "co_name_l"));
+				contact.setE_mail_address(JDBCUtils.getStringFromResultSet(rs, "e_mail_address"));
+				contact.setJob_ttl_cd(JDBCUtils.getStringFromResultSet(rs, "job_ttl_cd"));
+				contact.setPhone1(JDBCUtils.getStringFromResultSet(rs, "phone1"));
+				contact.setPhone2(JDBCUtils.getStringFromResultSet(rs, "phone2"));
+				contact.setPhone1_ex(JDBCUtils.getStringFromResultSet(rs, "phone1_ex"));
+				contact.setPhone2_ex(JDBCUtils.getStringFromResultSet(rs, "phone2_ex"));
+				contact.setAudit_userid(JDBCUtils.getStringFromResultSet(rs, "audit_userid"));
+				contact.setAudit_date(JDBCUtils.getStringFromResultSet(rs, "audit_date"));			
+
+				al.add(contact);
+			}
+
+			rs.close();
+			rs = null;
+            stmt.close();
+            stmt = null;
+		} catch (SQLException e) {
+			try {
+				if (rs != null) {
+					rs.close();
+				}
+			} catch (SQLException e3) {
+			}
+			try {
+				if (stmt != null) {
+					stmt.close();
+				}
+			} catch (SQLException e3) {
+			}
+
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_1);
+		}
+
+		if (al.size() == 0) {
+			return null;
+		}
+
+        return al;
+	}
+
+	public static void printDAOContactObjects(ArrayList<Contact> al) {
+		if (al == null) {
+			return;
+		}
+
+		for (Iterator<Contact> iterator = al.iterator(); iterator.hasNext();) {
+			Contact contact = iterator.next();
+
+			log.debug("pros_cd        : " + contact.getPros_cd());
+			log.debug("cont_no        : " + contact.getCont_no());
+			log.debug("co_name_f      : " + contact.getCo_name_f());
+			log.debug("co_name_m      : " + contact.getCo_name_m());
+			log.debug("co_name_l      : " + contact.getCo_name_l());
+			log.debug("e_mail_address : " + contact.getE_mail_address());
+			log.debug("job_ttl_cd     : " + contact.getJob_ttl_cd());
+			log.debug("phone1         : " + contact.getPhone1());
+			log.debug("phone2         : " + contact.getPhone2());
+			log.debug("phone1_ex      : " + contact.getPhone1_ex());
+			log.debug("phone2_ex      : " + contact.getPhone2_ex());
+			log.debug("audit_userid      : " + contact.getAudit_userid());
+			log.debug("audit_date      : " + contact.getAudit_date());			
+        }
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static Contact findContactWithMatchingFirstAndLastNames(ArrayList<Contact> matchedContacts, String firstName, String lastName) {
+		for (Iterator<Contact> iterator = matchedContacts.iterator(); iterator.hasNext();) {
+			Contact contact = iterator.next();
+			if ((contact.getCo_name_f().trim().compareToIgnoreCase(firstName.trim()) 	== 0) &&
+				(contact.getCo_name_l().trim().compareToIgnoreCase(lastName.trim()) 	== 0)    ) {
+				log.debug("Matched, cont_no: " + contact.getCont_no());
+				return contact;
+			}
+		}
+		return null;
+	}
+
+	public static int findMaxContactNumUsed(ArrayList<Contact> matchedContacts) {
+		int max_cont_no = -1;
+		for (Iterator<Contact> iterator = matchedContacts.iterator(); iterator.hasNext();) {
+			Contact contact = iterator.next();
+			max_cont_no = Math.max(max_cont_no, contact.getCont_no());
+		}
+		return max_cont_no;
+	}
+
+	public static int findMaxContactNumUsed(DBConnector dbConnector, String cust_num) throws PortalException {
+		ArrayList<Contact> conts = getContactsOfACustomer(dbConnector, cust_num);
+		
+		int max_cont_no = -1;
+		for (Iterator<Contact> iterator = conts.iterator(); iterator.hasNext();) {
+			Contact contact = iterator.next();
+			max_cont_no = Math.max(max_cont_no, contact.getCont_no());
+		}
+		return max_cont_no;
+	}
+
+	public static ArrayList<Contact> findContactWithMatchingFirstInitialAndLastName(DBConnector dbConnector, String cust_num, String firstInitial, String lastName) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+				 			 "where pros_cd = '" + cust_num + "' " +
+				             "  and co_name_l = '" + lastName + "' " +
+				 			 "  and substr(co_name_f, 1, 1) = '" + firstInitial + "'";
+
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static Contact findContactWithMatchingFirstInitialAndLastName(ArrayList<Contact> contacts, String firstInitial, String lastName) throws PortalException {
+		for (Iterator<Contact> iterator = contacts.iterator(); iterator.hasNext();) {
+			Contact contact = iterator.next();
+			
+			if (contact.getCo_name_l().toLowerCase().compareTo(lastName.toLowerCase()) == 0) {
+				if (contact.getCo_name_f().substring(0, 1).toLowerCase().compareTo(firstInitial.toLowerCase()) == 0) {
+					return contact;
+				}
+			}
+		}
+
+		return null;
+	}
+	
+	// -------------------------------------------------------------------------------------------------------------
+
+	public static ArrayList<Contact> getContact(DBConnector dbConnector, String cust_num, int cont_no) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 "where pros_cd = '" + cust_num + "' and cont_no = '" + cont_no + "'";
+
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static ArrayList<Contact> getContactsOfACustomer(DBConnector dbConnector, String cust_num) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 "where pros_cd = '" + cust_num + "'";
+
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static ArrayList<Contact> getContactsThatMatchedEmail(DBConnector dbConnector, String email) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 "where lcase(e_mail_address) = '" + email + "'";
+
+		// log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static ArrayList<Contact> getFirstContactThatMatchedEmail(DBConnector dbConnector, String email) throws PortalException {
+		String queryString = "select top 1 " + getQueryFieldSelectionString() + " from pub.contact " +
+							 "where lcase(e_mail_address) = '" + email + "'";
+
+		// log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static ArrayList<Contact> getContactsThatMatchedEmailWithinACustomer(DBConnector dbConnector, String cust_num, String email) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+				 "where pros_cd = '" + cust_num + "' " +
+		 		 "  and lcase(e_mail_address) = '" + email + "'";
+
+		log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+	
+	public static ArrayList<Contact> getContactsThatMatchedPhone(DBConnector dbConnector, String phone1, String phone2, String phone3) throws PortalException {
+		if ((phone1 == null) && (phone2 == null) && (phone3 == null)) {
+			return null;
+		}
+
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact where ";
+
+		String whereClause = null;
+		if (StringUtils.isBlank(phone1) == false) {
+			whereClause = ("phone1 = '" + phone1 + "' or phone2 = '" + phone1 + "'");
+		}
+		if (StringUtils.isBlank(phone2) == false) {
+			if (whereClause == null) {
+				whereClause = ("phone1 = '" + phone2 + "' or phone2 = '" + phone2 + "'");
+			} else {
+				whereClause += (" or " + ("phone1 = '" + phone2 + "' or phone2 = '" + phone2 + "'"));
+			}
+		}
+		if (StringUtils.isBlank(phone3) == false) {
+			if (whereClause == null) {
+				whereClause = ("phone1 = '" + phone3 + "' or phone2 = '" + phone3 + "'");
+			} else {
+				whereClause += (" or " + ("phone1 = '" + phone3 + "' or phone2 = '" + phone3 + "'"));
+			}
+		}
+
+		queryString += whereClause;
+
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}
+
+	public static ArrayList<Contact> getContactsThatMatchedDomain(DBConnector dbConnector, String domain) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 "where instr(lcase(e_mail_address), '@" + domain.toLowerCase() + "') > 0";
+		log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}   
+    
+	public static ArrayList<Contact> getContactsThatMatchedDomainWithinACustomer(DBConnector dbConnector, String cust_num, String domain) throws PortalException {
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 " where pros_cd = '" + cust_num + "' " +
+							 "   and instr(lcase(e_mail_address), '@" + domain.toLowerCase() + "') > 0";
+		log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}   
+    
+	public static ArrayList<Contact> getContactsThatMatchedDomainWithinGivenCustomers(DBConnector dbConnector, HashSet<String> hsDistinctCustNums, String domain) throws PortalException {
+		if ((hsDistinctCustNums == null) || (hsDistinctCustNums.size() == 0)){
+			return null;
+		}
+
+		String custNosString = null;
+		for (Iterator<String> iterator = hsDistinctCustNums.iterator(); iterator.hasNext();) {
+			if (custNosString != null) {
+				custNosString += ", ";
+			} else {
+				custNosString = "";
+			}
+
+			custNosString += "'" + iterator.next() + "'";
+		}
+		
+		String queryString = "select " + getQueryFieldSelectionString() + " from pub.contact " +
+							 " where pros_cd in (" + custNosString + ") " +
+							 "   and instr(lcase(e_mail_address), '@" + domain.toLowerCase() + "') > 0";
+		log.debug(queryString);
+		
+		ArrayList<Contact> al = buildDAOObjectsFromResultSet(dbConnector, queryString);
+		// printDAOContactObjects(al);
+		return al;
+	}   
+    
+	// -------------------------------------------------------------------------------------------------------------
+
+	public void persist(DBConnector dbConnector) throws PortalException {
+		String insertQueryString =
+		        "insert into pub.contact "                                                    +
+				"(pros_cd, cont_no, co_name_f, co_name_m, co_name_l, "                        +
+				" phone1, phone2, phone1_ex, phone2_ex, audit_userid, audit_date, e_mail_address, job_ttl_cd) " +
+				"values ('" + pros_cd + "', " + "'" + cont_no + "', " + "'" + co_name_f + "', "     +
+				        "'" +    co_name_m + "', " + "'" + co_name_l + "', " + "'" + phone1 + "', " +
+				        "'" + phone2 + "', " + "'" + phone1_ex + "', " + "'" + phone2_ex + "', "    +
+				        "'" + audit_userid + "', " +
+				        "'" + audit_date + "', " +				        
+				        "'" + e_mail_address + "', '" + job_ttl_cd + "')";
+
+		JDBCUtils.executeUpdateWDS(dbConnector, insertQueryString);
+	}
+
+	public void update(DBConnector dbConnector) throws PortalException {
+		String updateQueryString =
+				"update pub.contact " +
+				"set " +
+				"co_name_f = '" + co_name_f + "', " +
+				"co_name_m = '" + co_name_m + "', " +
+				"co_name_l = '" + co_name_l + "', " +
+				"phone1 = '" + phone1 + "', " +
+				"phone2 = '" + phone2 + "', " +
+				"phone1_ex = '" + phone1_ex + "', " +
+				"phone2_ex = '" + phone2_ex + "', " +
+				"audit_userid = '" + audit_userid + "', " +
+				"audit_date = '" + audit_date + "', " +				
+				"e_mail_address = '" + e_mail_address + "' " +
+				"where pros_cd = '" + pros_cd + "' and " +
+				"cont_no = '" + cont_no + "'";
+
+		JDBCUtils.executeUpdateWDS(dbConnector, updateQueryString);
+	}
+
+	public static void updateNamesAndEmail(DBConnector dbConnector, String cust_num, int cont_no, String co_name_f, String co_name_m, String co_name_l, String e_mail_address) throws PortalException {
+		String updateQueryString =
+				"update pub.contact " +
+				"set " +
+				"co_name_f = '" + co_name_f + "', " +
+				"co_name_m = '" + co_name_m + "', " +
+				"co_name_l = '" + co_name_l + "', " +
+				"e_mail_address = '" + e_mail_address + "' " +
+				"where pros_cd = '" + cust_num + "' and " +
+				"cont_no = '" + cont_no + "'";
+
+		log.debug(updateQueryString);
+
+		JDBCUtils.executeUpdateWDS(dbConnector, updateQueryString);
+	}
+
+	public static void updateNames(DBConnector dbConnector, String cust_num, int cont_no, String co_name_f, String co_name_m, String co_name_l) throws PortalException {
+		String updateQueryString =
+				"update pub.contact " +
+				"set " +
+				"co_name_f = '" + co_name_f + "', " +
+				"co_name_m = '" + co_name_m + "', " +
+				"co_name_l = '" + co_name_l + "' " +
+				"where pros_cd = '" + cust_num + "' and " +
+				"cont_no = '" + cont_no + "'";
+
+		log.debug(updateQueryString);
+
+		JDBCUtils.executeUpdateWDS(dbConnector, updateQueryString);
+	}
+
+	public static void updateEmail(DBConnector dbConnector, String cust_num, int cont_no, String e_mail_address) throws PortalException {
+		String updateQueryString =
+				"update pub.contact " +
+				"set " +
+				"e_mail_address = '" + e_mail_address + "' " +
+				"where pros_cd = '" + cust_num + "' and " +
+				"cont_no = '" + cont_no + "'";
+
+		log.debug(updateQueryString);
+
+		JDBCUtils.executeUpdateWDS(dbConnector, updateQueryString);
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
+	public String getCust_num() {
+		return pros_cd;
+	}
+	public String getPros_cd() {
+		return pros_cd;
+	}
+	public void setPros_cd(String pros_cd) {
+		this.pros_cd = pros_cd;
+	}
+	public int getCont_no() {
+		return cont_no;
+	}
+	public void setCont_no(int cont_no) {
+		this.cont_no = cont_no;
+	}
+	public String getCo_name_f() {
+		return co_name_f;
+	}
+	public void setCo_name_f(String co_name_f) {
+		this.co_name_f = co_name_f;
+	}
+	public String getCo_name_m() {
+		return co_name_m;
+	}
+	public void setCo_name_m(String co_name_m) {
+		this.co_name_m = co_name_m;
+	}
+	public String getCo_name_l() {
+		return co_name_l;
+	}
+	public void setCo_name_l(String co_name_l) {
+		this.co_name_l = co_name_l;
+	}
+	public String getE_mail_address() {
+		return e_mail_address;
+	}
+	public void setE_mail_address(String e_mail_address) {
+		this.e_mail_address = e_mail_address;
+	}
+	public String getJob_ttl_cd() {
+		return job_ttl_cd;
+	}
+
+	public void setJob_ttl_cd(String job_ttl_cd) {
+		this.job_ttl_cd = job_ttl_cd;
+	}
+	public String getPhone1() {
+		return phone1;
+	}
+	public void setPhone1(String phone1) {
+		this.phone1 = phone1;
+	}
+	public String getPhone2() {
+		return phone2;
+	}
+	public void setPhone2(String phone2) {
+		this.phone2 = phone2;
+	}
+	public String getPhone1_ex() {
+		return phone1_ex;
+	}
+	public void setPhone1_ex(String phone1_ex) {
+		this.phone1_ex = phone1_ex;
+	}
+	public String getPhone2_ex() {
+		return phone2_ex;
+	}
+	public void setPhone2_ex(String phone2_ex) {
+		this.phone2_ex = phone2_ex;
+	}
+	public String getAudit_userid() {
+		return audit_userid;
+	}
+	public void setAudit_userid(String audit_userid) {
+		this.audit_userid = audit_userid;
+	}
+	public String getAudit_date() {
+		return audit_date;
+	}
+	public void setAudit_date(String audit_date) {
+		this.audit_date = audit_date;
+	}
+}

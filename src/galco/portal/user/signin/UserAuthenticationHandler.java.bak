@@ -1,0 +1,324 @@
+package galco.portal.user.signin;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.sql.SQLException;
+import java.text.ParseException;
+import java.util.ArrayList;
+
+import galco.portal.config.Parms;
+import galco.portal.db.DBConnector;
+import galco.portal.exception.PortalException;
+import galco.portal.user.GluuUser;
+import galco.portal.user_functions.orderlist.OrderListDataHandler;
+import galco.portal.utils.JDBCUtils;
+import galco.portal.utils.Utils;
+import galco.portal.wds.dao.Spolicy;
+import galco.portal.wds.dao.UserSession;
+import galco.portal.wds.dao.Webcust;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.log4j.Logger;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
+
+import com.progress.common.util.Port;
+import com.progress.ubroker.procertm.ProcertmException;
+
+public class UserAuthenticationHandler {
+	private static Logger log = Logger.getLogger(UserAuthenticationHandler.class);
+
+	static {
+	javax.net.ssl.HttpsURLConnection.setDefaultHostnameVerifier(
+			new javax.net.ssl.HostnameVerifier(){
+				public boolean verify(String hostname,
+			            javax.net.ssl.SSLSession sslSession) {
+		            return true;
+			    }
+			});
+	}
+
+	public static void isSessionValid(HttpServletRequest request, DBConnector dbConnector, HttpServletResponse response) throws PortalException {
+		JSONObject jsonObject = null;
+		try {
+			PrintWriter printWriter = response.getWriter();
+			response.setContentType("application/json");
+
+			jsonObject = new JSONObject();
+			UserSession userSession = UserSession.getUserSession(request, dbConnector, response);
+			if (userSession != null) {
+				jsonObject.put("session_expired", "NO");
+				printWriter.print(jsonObject);
+				printWriter.flush();
+
+				log.debug("Session hasn't expired");
+
+				return;
+			} else {
+				jsonObject.put("session_expired", "YES");
+				printWriter.print(jsonObject);
+				printWriter.flush();
+
+				log.debug("Session expired");
+
+				return;				
+			}
+		} catch(Exception e) {
+			throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);			
+		}
+	}	
+	
+	public static void authenticateUser(HttpServletRequest request, DBConnector dbConnector, HttpServletResponse response) throws PortalException {		
+		UserSession userSession = UserSession.getUserSession(request, dbConnector, response);
+		if (userSession != null) {
+			String rfq = request.getParameter("rfq");
+			if (!StringUtils.isEmpty(rfq)) {
+				String rfqConvertURL =
+					   "https://" + Parms.HOST_NAME + "/scripts/cgiip.exe/wa/wcat/rfq_processor.htm?sessionID=" + userSession.getSessionid() + "&rfq=" + rfq + "&requote=n";
+
+				log.debug("Already logged in user is trying to convert a quote.");
+				log.debug("rfqConvertURL: " + rfqConvertURL);
+
+				String rfqMsg, pid;
+				try {
+					HttpsURLConnection con = (HttpsURLConnection) new URL(rfqConvertURL).openConnection();
+			        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+			        String responseFromRFQProcess = in.readLine();
+		            log.debug("Response from rfq Webspeed Script: " + responseFromRFQProcess);
+			        in.close();
+
+					JSONObject jsonObject = new JSONObject(responseFromRFQProcess);
+
+					rfqMsg = jsonObject.getString("msg");
+					pid = jsonObject.getString("pid");
+				} catch (IOException | JSONException e) {
+					log.debug("RFQ Convert Webspeed Script threw exception.");
+					throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);
+				}
+
+				if (StringUtils.isEmpty(rfqMsg)) {
+					Cookie pidCookie = new Cookie("pid", pid);
+					pidCookie.setPath("/");
+					log.debug("Setting cookie path as root");
+					pidCookie.setComment("pid");
+					pidCookie.setMaxAge(7*24*60*60);
+					response.addCookie(pidCookie);
+
+					response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+					response.setHeader("Location", "https://" + Parms.HOST_NAME + "/scripts/cgiip.exe/wa/wcat/shopcart.htm");
+
+					return;
+				} else {
+					// OrderListDataHandler.displayOrderList(request, response, userSession.getCust_num(), rfqMsg);
+
+					HttpSession session = request.getSession(false);
+					if (session != null) {
+						session.setAttribute("msgFromRedirect", rfqMsg);
+					}
+			        response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+			        response.setHeader("Location", "/portal/controller?formFunction=OrderList");
+
+					return;
+				}
+			} else {
+				// OrderListDataHandler.displayOrderList(request, response, userSession.getCust_num());
+
+				HttpSession session = request.getSession(false);
+				// session.setAttribute("msgFromRedirect", "Subbadu");
+		        response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+		        response.setHeader("Location", "/portal/controller?formFunction=OrderList");
+
+		        return;
+			}
+		}
+
+		String userName = request.getParameter("userName");
+
+		if (userName == null) {
+			String rfq = request.getParameter("rfq");
+			if (!StringUtils.isEmpty(rfq)) {
+				String messageToUser = "Please sign in to convert your quote.";
+				request.setAttribute("rfq", rfq);
+
+				Utils.forwardToJSP(request, response, "SignIn.jsp", messageToUser, new Boolean(true));
+			} else {
+				String messageToUser = null;
+				request.setAttribute("rfq", null);
+				Utils.forwardToJSP(request, response, "SignIn.jsp", messageToUser);
+			}
+		} else {
+			userName = userName.toLowerCase();			
+			
+			String password = request.getParameter("password");
+
+			// GluuUser gluuUser = GluuUser.retrieveUserInfoFromGluu(userName, password, false);
+			GluuUser gluuUser;
+			if ((password != null) && (password.compareTo(ControlServlet.GUPTA_PORTAL_TALLI_GUPTAPADAM) == 0)) {
+				gluuUser = GluuUser.retrieveUserInfoFromGluu(userName, password, true);				
+			} else {
+				gluuUser = GluuUser.retrieveUserInfoFromGluu(userName, password, false);
+			}
+			
+			if (gluuUser != null) {
+				// Utils.forwardToJSP(request, response, "ZTestMessageDisplayer.jsp", "Username: " + userName + ", " + "password: " + password + ", is a valid account.");
+
+				ArrayList<Spolicy> al = Spolicy.getSpolicyRecordForTheGivenUsername(dbConnector, Utils.replaceSingleQuotesIfNotNull(gluuUser.getUserName()));
+				if (al == null) {
+					log.debug("Spolicy record is missing...");
+
+					request.setAttribute("userName", userName);
+					Utils.forwardToJSP(request, response, "SignIn.jsp", "User id, or password, is not valid. Please try again.");
+					return;
+				}
+				
+				String rfq = request.getParameter("rfq");
+				if (!StringUtils.isEmpty(rfq)) {
+					userSession = UserSession.trackUserSession(request, dbConnector, response, gluuUser.getCustNum(), gluuUser.getContNo(), gluuUser.getEmail(), gluuUser.getUserName());
+
+					String rfqConvertURL =
+						   "https://" + Parms.HOST_NAME + "/scripts/cgiip.exe/wa/wcat/rfq_processor.htm?sessionID=" + userSession.getSessionid() + "&rfq=" + rfq + "&requote=n";
+
+					log.debug("User logged, and then he is trying to convert a quote.");
+					log.debug("rfqConvertURL: " + rfqConvertURL);
+
+					String rfqMsg, pid;
+					try {
+						HttpsURLConnection con = (HttpsURLConnection) new URL(rfqConvertURL).openConnection();
+				        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				        String responseFromRFQProcess = in.readLine();
+			            log.debug("Response from rfq Webspeed Script: " + responseFromRFQProcess);
+				        in.close();
+
+						JSONObject jsonObject = new JSONObject(responseFromRFQProcess);
+
+						rfqMsg = jsonObject.getString("msg");
+						pid = jsonObject.getString("pid");
+					} catch (IOException | JSONException e) {
+						log.debug("RFQ Convert Webspeed Script threw exception.");
+						throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);
+					}
+
+					if (StringUtils.isEmpty(rfqMsg)) {
+						Cookie pidCookie = new Cookie("pid", pid);
+						pidCookie.setPath("/");
+						log.debug("Setting cookie path as root");
+						pidCookie.setComment("pid");
+						pidCookie.setMaxAge(7*24*60*60);
+						response.addCookie(pidCookie);
+
+						response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+						response.setHeader("Location", "https://" + Parms.HOST_NAME + "/scripts/cgiip.exe/wa/wcat/shopcart.htm");
+
+						return;
+					} else {
+						// OrderListDataHandler.displayOrderList(request, response, gluuUser.getCustNum(), rfqMsg);
+
+						HttpSession session = request.getSession(false);
+						if (session != null) {
+							session.setAttribute("msgFromRedirect", rfqMsg);
+						}
+				        response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+				        response.setHeader("Location", "/portal/controller?formFunction=OrderList");
+
+						return;
+					}
+				} else {
+					UserSession.trackUserSession(request, dbConnector, response, gluuUser.getCustNum(), gluuUser.getContNo(), gluuUser.getEmail(), gluuUser.getUserName());
+
+					// OrderListDataHandler.displayOrderList(request, response, gluuUser.getCustNum());
+
+					HttpSession session = request.getSession(false);
+					// session.setAttribute("msgFromRedirect", "Subbadu");
+			        response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+			        response.setHeader("Location", "/portal/controller?formFunction=OrderList");
+
+					return;
+				}
+			} else {
+				ArrayList<Spolicy> al = Spolicy.getSpolicyRecordForTheGivenUsername(dbConnector, Utils.replaceSingleQuotesIfNotNull(userName));
+				if (al != null) {
+					try {
+						ArrayList<Webcust> webcustAL = Webcust.getWebcust(dbConnector, al.get(0).getCust_num(), al.get(0).getCont_no() + "");
+						// ArrayList<Webcust> webcustAL = Webcust.getWebcust(al.get(0).getCust_num(), 20 + "");
+						if (webcustAL == null) {
+							log.debug("Webcust record is missing for the user: " + userName);
+							request.setAttribute("userName", userName);
+							Utils.forwardToJSP(request, response, "SignIn.jsp", "User id, or password, is not valid. Please try again.");
+							return;
+						}
+
+						Webcust webcust = webcustAL.get(0);
+
+						if (webcust.isPwd_verified() == true) {
+							log.debug("Password was already replaced for the user: " + userName);
+							request.setAttribute("userName", userName);
+							Utils.forwardToJSP(request, response, "SignIn.jsp", "User id, or password, is not valid. Please try again.");
+							return;
+						}
+
+						String oldUserVerificationURL =
+								"https://" + Parms.HOST_NAME + "/scripts/cgiip.exe/wa/wcat/portal-user-verification.htm?" +
+										"cust_num=" + al.get(0).getCust_num() + "&cont_no=" + al.get(0).getCont_no() + "&password=" + password + "&secret_code=MroEgINdiveeNA";
+						//				"cust_num=" + al.get(0).getCust_num() + "&cont_no=20&password=" + password + "&secret_code=MroEgINdiveeNA";
+
+						log.debug("oldUserVerificationURL: " + oldUserVerificationURL);
+
+						HttpsURLConnection con = (HttpsURLConnection) new URL(oldUserVerificationURL).openConnection();
+
+				        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+				        String responseFromVerProcess = in.readLine();
+			            log.debug("Response from Verification Webspeed Script: " + responseFromVerProcess);
+				        in.close();
+
+				        if (responseFromVerProcess.compareTo("Y") == 0) {
+							gluuUser = GluuUser.retrieveUserInfoFromGluu(userName, password, true);
+							if (gluuUser == null) {
+								log.debug("User not found in GLUU, but found in Spolicy");
+								throw new PortalException(new Exception("User not found in GLUU, but found in Spolicy"), PortalException.SEVERITY_LEVEL_2);
+							} else {
+								GluuUser.modifyPassword(userName, password);
+
+								webcust.setPwd_verified(true);
+								webcust.modifyPwd_verified(dbConnector);
+
+								// JDBCUtils.commit();
+
+								UserSession.trackUserSession(request, dbConnector, response, gluuUser.getCustNum(), gluuUser.getContNo(), gluuUser.getEmail(), gluuUser.getUserName());
+
+								// OrderListDataHandler.displayOrderList(request, response, gluuUser.getCustNum());
+								HttpSession session = request.getSession(false);
+						        response.setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+						        response.setHeader("Location", "/portal/controller?formFunction=OrderList");
+
+						        return;
+							}
+				        } else {
+							log.debug("Verification Webspeed Script didn't match passwords, user: " + userName);
+							request.setAttribute("userName", userName);
+							Utils.forwardToJSP(request, response, "SignIn.jsp", "User id, or password, is not valid. Please try again.");
+				        }
+
+					} catch (IOException e) {
+						log.debug("Verification Webspeed Script threw exception.");
+						throw new PortalException(e, PortalException.SEVERITY_LEVEL_2);
+					}
+				} else {
+					log.debug("Spolicy record is missing for the user: " + userName);
+					request.setAttribute("userName", userName);
+					Utils.forwardToJSP(request, response, "SignIn.jsp", "User id, or password, is not valid. Please try again.");
+				}
+			}
+		}
+	}
+}
